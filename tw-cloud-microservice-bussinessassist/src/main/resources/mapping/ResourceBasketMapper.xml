@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+
+       Copyright 2015-2016 the original author or authors.
+
+       Licensed under the Apache License, Version 2.0 (the "License");
+       you may not use this file except in compliance with the License.
+       You may obtain a copy of the License at
+
+          http://www.apache.org/licenses/LICENSE-2.0
+
+       Unless required by applicable law or agreed to in writing, software
+       distributed under the License is distributed on an "AS IS" BASIS,
+       WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+       See the License for the specific language governing permissions and
+       limitations under the License.
+
+-->
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tianwen.springcloud.microservice.bussinessassist.dao.ResourceBasketMapper">
+    <!-- 分页 -->
+    <sql id="sqlFragment_pagination">
+        <if test="numPerPage != null">
+            limit #{numPerPage}
+        </if>
+        <if test="start != null">
+            offset #{start}
+        </if>
+    </sql>
+
+    <!-- 查询条件 -->
+    <sql id="sqlFragment_searchCriteria">
+        <if test="oredCriteria != null and oredCriteria.size != 0">
+            <trim prefix="and(" suffix=")">
+                <foreach collection="oredCriteria" item="criteria" separator="or">
+                    <if test="criteria.valid">
+                        <trim prefix="(" prefixOverrides="and" suffix=")">
+                            <foreach collection="criteria.criteria" item="criterion">
+                                <choose>
+                                    <when test="criterion.noValue">
+                                        and ${criterion.condition}
+                                    </when>
+                                    <when test="criterion.singleValue">
+                                        and ${criterion.condition} #{criterion.value}
+                                    </when>
+                                    <when test="criterion.betweenValue">
+                                        and ${criterion.condition} #{criterion.value} and #{criterion.secondValue}
+                                    </when>
+                                    <when test="criterion.listValue">
+                                        and ${criterion.condition}
+                                        <foreach close=")" collection="criterion.value" item="listItem" open="("
+                                                 separator=",">
+                                            #{listItem}
+                                        </foreach>
+                                    </when>
+                                </choose>
+                            </foreach>
+                        </trim>
+                    </if>
+                </foreach>
+            </trim>
+        </if>
+    </sql>
+
+    <select id="count" parameterType="java.util.Map"
+            resultType="Integer">
+        select count(*) from t_con_resbasket
+        where 1 = 1
+        <if test="userid != null">
+            <if test="!userid.isEmpty()">
+                and creator = #{userid}
+            </if>
+        </if>
+        <if test="contentid != null">
+            <if test="!contentid.isEmpty()">
+                and objectid = #{contentid}
+            </if>
+        </if>
+        <if test="status != null">
+            <if test="!status.isEmpty()">
+                and status = #{status}
+            </if>
+        </if>
+    </select>
+
+    <insert id="addResourceBasket" parameterType="java.util.Map">
+        insert into t_con_resbasket
+        values((SELECT pg_nextval('seq_basketid_t_con_resbasket'))
+          ,#{contentid}, #{userid}, '1', CURRENT_TIMESTAMP, null)
+    </insert>
+
+    <delete id="removeResourceBasket" parameterType="java.util.Map">
+        delete from t_con_resbasket where creator = #{userid} and objectid = #{contentid}
+    </delete>
+
+    <!--<select id="queryBasketForList" parameterType="java.util.Map"-->
+            <!--resultType="com.tianwen.springcloud.microservice.bussinessassist.entity.ResourceBasket">-->
+        <!--select * from t_con_resbasket-->
+        <!--where 1 = 1-->
+        <!--<if test="userid != null">-->
+            <!--<if test="!userid.isEmpty()">-->
+                <!--and creator = #{userid}-->
+            <!--</if>-->
+        <!--</if>-->
+        <!--<if test="contentid != null">-->
+            <!--<if test="!contentid.isEmpty()">-->
+                <!--and objectid = #{contentid}-->
+            <!--</if>-->
+        <!--</if>-->
+        <!--<if test="status != null">-->
+            <!--<if test="!status.isEmpty()">-->
+                <!--and status = #{status}-->
+            <!--</if>-->
+        <!--</if>-->
+        <!--order by createtime desc-->
+        <!--<if test="getalldata == null">-->
+            <!--<include refid="sqlFragment_pagination"/>-->
+        <!--</if>-->
+    <!--</select>-->
+
+    <select id="queryBasketForList" parameterType="java.util.Map"
+            resultType="com.tianwen.springcloud.microservice.bussinessassist.entity.ResourceBasket">
+        select t0.*, t1.collectid from t_con_resbasket t0
+        left join t_e_resource_collect t1 on (t0.objectid = t1.objectid and t0.creator = t1.userid)
+        where 1 = 1
+        <if test="creator != null">
+            <if test="!creator.isEmpty()">
+                and t0.creator = #{creator}
+            </if>
+        </if>
+        <if test="contentid != null">
+            <if test="!contentid.isEmpty()">
+                and t0.objectid = #{contentid}
+            </if>
+        </if>
+        <if test="status != null">
+            <if test="!status.isEmpty()">
+                and t0.status = #{status}
+            </if>
+        </if>
+        order by t0.createtime desc
+        <if test="getalldata == null">
+            <include refid="sqlFragment_pagination"/>
+        </if>
+    </select>
+</mapper>

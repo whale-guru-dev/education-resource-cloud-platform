@@ -1,0 +1,1301 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+
+       Copyright 2015-2016 the original author or authors.
+
+       Licensed under the Apache License, Version 2.0 (the "License");
+       you may not use this file except in compliance with the License.
+       You may obtain a copy of the License at
+
+          http://www.apache.org/licenses/LICENSE-2.0
+
+       Unless required by applicable law or agreed to in writing, software
+       distributed under the License is distributed on an "AS IS" BASIS,
+       WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+       See the License for the specific language governing permissions and
+       limitations under the License.
+
+-->
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tianwen.springcloud.microservice.resource.dao.ResourceMapper">
+    <!-- 分页 -->
+    <sql id="sqlFragment_pagination">
+        <if test="numPerPage != null">
+            limit #{numPerPage}
+        </if>
+        <if test="start != null">
+            offset #{start}
+        </if>
+    </sql>
+
+    <!-- 查询条件 -->
+    <sql id="sqlFragment_searchCriteria">
+        <if test="oredCriteria != null and oredCriteria.size != 0">
+            <trim prefix="and(" suffix=")">
+                <foreach collection="oredCriteria" item="criteria" separator="or">
+                    <if test="criteria.valid">
+                        <trim prefix="(" prefixOverrides="and" suffix=")">
+                            <foreach collection="criteria.criteria" item="criterion">
+                                <choose>
+                                    <when test="criterion.noValue">
+                                        and ${criterion.condition}
+                                    </when>
+                                    <when test="criterion.singleValue">
+                                        and ${criterion.condition} #{criterion.value}
+                                    </when>
+                                    <when test="criterion.betweenValue">
+                                        and ${criterion.condition} #{criterion.value} and #{criterion.secondValue}
+                                    </when>
+                                    <when test="criterion.listValue">
+                                        and ${criterion.condition}
+                                        <foreach close=")" collection="criterion.value" item="listItem" open="("
+                                                 separator=",">
+                                            #{listItem}
+                                        </foreach>
+                                    </when>
+                                </choose>
+                            </foreach>
+                        </trim>
+                    </if>
+                </foreach>
+            </trim>
+        </if>
+    </sql>
+
+    <sql id="shareRangeKeyCondition">
+        <if test="isUser != null">
+            AND
+            CASE
+            WHEN (
+            t1.sharerange != '1'
+            AND t1.sharerange IS NOT NULL
+            ) THEN CASE
+            WHEN t1.sharerange = '2' THEN
+            <if test="castleid != null and !castleid.isEmpty()">
+                t1.sharerangekey ilike '%'||#{castleid}||'%'
+            </if>
+            <if test="castleid == null || castleid.isEmpty()">
+                FALSE
+            </if>
+            ELSE
+            CASE
+            WHEN t1.sharerange = '3' THEN
+            <if test="cityid != null and !cityid.isEmpty()">
+                t1.sharerangekey ilike '%,'||#{cityid}||'%'
+            </if>
+            <if test="cityid == null || cityid.isEmpty()">
+                FALSE
+            </if>
+            ELSE
+            CASE
+            WHEN t1.sharerange = '4' THEN
+            <if test="partid != null and !partid.isEmpty()">
+                t1.sharerangekey ilike '%,'||#{partid}||'%'
+            </if>
+            <if test="partid == null || partid.isEmpty()">
+                FALSE
+            </if>
+            ELSE
+            <if test="orgsharerangeid != null and !orgsharerangeid.isEmpty()">
+                t1.sharerangekey ilike '%,'||#{orgsharerangeid}||'%'
+            </if>
+            <if test="orgsharerangeid == null || orgsharerangeid.isEmpty()">
+                FALSE
+            </if>
+            END
+            END
+            END
+            ELSE
+            TRUE
+            END
+        </if>
+    </sql>
+
+    <select id="getBookChapterInfo" parameterType="java.util.Map"
+            resultType="com.tianwen.springcloud.microservice.resource.entity.ResConCatalogInfo">
+        select chapterid, resourceno from t_con_content_book_chapter
+        where TRUE
+        <if test="resourceno != null and !resourceno.isEmpty()">
+            and resourceno = #{resourceno}
+        </if>
+        <if test="catalogid != null and !catalogid.isEmpty()">
+            and chapterid = #{catalogid}
+        </if>
+        <if test="bookid != null and !bookid.isEmpty()">
+            and bookid = #{bookid}
+        </if>
+        <if test="getalldata == null">
+            <include refid="sqlFragment_pagination"/>
+        </if>
+    </select>
+    <!--Author : GOD, 2019-2-12 Bug ID: #680-->
+    <select id="getActivityContentIds" parameterType="java.util.Map"
+            resultType="String">
+        select distinct(resourceno) from t_con_content_activity
+        where 1 = 1
+        <if test="activityid != null and !activityid.isEmpty()">
+            and activityid = #{activityid}
+        </if>
+        <if test="activityids != null">
+            and (1 = 0
+            <foreach item="actId" collection="activityids">
+                <if test="!activityid.isEmpty()">
+                    or activityid = #{actId}
+                </if>
+            </foreach>)
+        </if>
+        <if test="activitytype != null and !activitytype.isEmpty()">
+            and resourcetype = #{activitytype}
+        </if>
+    </select>
+    <!--Author : GOD, 2019-2-12 Bug ID: #680-->
+    <sql id="queryConditions">
+        WHERE
+        1=1
+        <include refid="shareRangeKeyCondition"/>
+        <if test="status == null">
+            and t1.status!='8'
+        </if>
+        <if test="isanswer != null and !isanswer.isEmpty()">
+            and isanswer = #{isanswer}
+        </if>
+        <if test="activityid != null and !activityid.isEmpty()">
+            and t3.activityid=#{activityid}
+        </if>
+        <if test="activityids != null">
+            and (1 = 0
+            <foreach item="activityid" collection="activityids">
+                <if test="!activityid.isEmpty()">
+                    or t3.activityid = #{activityid}
+                </if>
+            </foreach>)
+        </if>
+        <if test="activitytype != null and !activitytype.isEmpty()">
+            and t3.resourcetype=#{activitytype}
+        </if>
+        <if test="contentid != null">
+            <if test="!contentid.isEmpty()">
+                AND t1.contentid = #{contentid}
+            </if>
+        </if>
+        <if test="contentids != null">
+            and (1 = 0
+            <foreach item="contentid" collection="contentids">
+                or t1.contentid = #{contentid}
+            </foreach>)
+        </if>
+        <if test="name != null">
+            <if test = "!name.isEmpty()">
+                and t1.name ilike '%'||#{name}||'%'
+            </if>
+        </if>
+        <if test="filename != null">
+            <if test = "!filename.isEmpty()">
+                and t5.filename ilike '%'||#{filename}||'%'
+            </if>
+        </if>
+        <if test="isgoods != null">
+            <if test="!isgoods.isEmpty()">
+                AND t1.isgoods = #{isgoods}
+                and t5.fileid is not null
+            </if>
+        </if>
+        <if test="activityjoiner != null and !activityjoiner.isEmpty()">
+            and (t1.isgoods = '1' or t1.creator = #{activityjoiner})
+        </if>
+        <if test="contenttype != null">
+            <if test="!contenttype.isEmpty()">
+                and t1.contenttype = #{contenttype}
+            </if>
+        </if>
+        <if test="contenttypes != null">
+            and (1 = 0
+            <foreach item="contype" collection="contenttypes">
+                or t1.contenttype = #{contype}
+            </foreach>)
+        </if>
+        <if test="onelabel != null">
+            <if test="!onelabel.isEmpty()">
+                AND t1.onelabel = #{onelabel}
+            </if>
+        </if>
+        <if test="twolabel != null">
+            <if test="!twolabel.isEmpty()">
+                AND t1.twolabel = #{twolabel}
+            </if>
+        </if>
+        <if test="threelabel != null">
+            <if test="!threelabel.isEmpty()">
+                AND t1.threelabel = #{threelabel}
+            </if>
+        </if>
+        <if test="labelkey != null">
+            <if test="!labelkey.isEmpty()">
+                AND (t1.onelabel = #{labelkey} or t1.twolabel = #{labelkey} or t1.threelabel = #{labelkey})
+            </if>
+        </if>
+        <if test="sharerange != null">
+            <if test="!sharerange.isEmpty()">
+                AND t1.sharerange = #{sharerange}
+            </if>
+        </if>
+        <if test="oneschool != null">
+            <if test="!oneschool.isEmpty()">
+                AND t1.oneschool = #{oneschool}
+            </if>
+        </if>
+        <if test="twoschool != null">
+            <if test="!twoschool.isEmpty()">
+                AND t1.twoschool = #{twoschool}
+            </if>
+        </if>
+        <if test="status != null">
+            <if test="!status.isEmpty()">
+                AND t1.status = #{status}
+            </if>
+        </if>
+        <if test="schoolsectionid != null">
+            <if test="!schoolsectionid.isEmpty()">
+                and (#{schoolsectionid} ilike '%, '||t1.schoolsection||'%'
+                or #{schoolsectionid} ilike '%['||t1.schoolsection||'%'
+                or #{schoolsectionid} = t1.schoolsection)
+            </if>
+        </if>
+        <if test="subjectid != null">
+            <if test="!subjectid.isEmpty()">
+                and (#{subjectid} ilike '%, '||t1.subjectid||'%'
+                or #{subjectid} ilike '%['||t1.subjectid||'%'
+                or #{subjectid} = t1.subjectid)
+            </if>
+        </if>
+        <if test="gradeid != null">
+            <if test="!gradeid.isEmpty()">
+                and (#{gradeid} ilike '%, '||t1.grade||'%'
+                or #{gradeid} ilike '%['||t1.grade||'%'
+                or #{gradeid} = t1.grade)
+            </if>
+        </if>
+        <if test="bookmodelid != null">
+            <if test="!bookmodelid.isEmpty()">
+                and (#{bookmodelid} ilike '%, '||t1.bookmodel||'%'
+                or #{bookmodelid} ilike '%['||t1.bookmodel||'%'
+                or #{bookmodelid} = t1.bookmodel)
+            </if>
+        </if>
+        <if test="editiontypeid != null">
+            <if test="!editiontypeid.isEmpty()">
+                and (#{editiontypeid} ilike '%, '||t1.editiontypeid||'%'
+                or #{editiontypeid} ilike '%['||t1.editiontypeid||'%'
+                or #{editiontypeid} = t1.editiontypeid)
+            </if>
+        </if>
+        <if test="sourceid != null">
+            <if test="!sourceid.isEmpty()">
+                and t1.sourceid = #{sourceid}
+            </if>
+        </if>
+        <if test="sourceids != null">
+            and (1 = 0
+            <foreach item="sourceid" collection="sourceids">
+                or t1.sourceid = #{sourceid}
+            </foreach>)
+        </if>
+        <if test="catalogids != null">
+            and (1 = 0
+            <foreach item="catid" collection="catalogids">
+                or #{catid} = t2.chapterid
+            </foreach>)
+        </if>
+        <if test="bookid != null">
+            <if test="!bookid.isEmpty()">
+                and t2.bookid = #{bookid}
+            </if>
+        </if>
+        <if test="creatorids != null">
+            and (1 = 0
+            <foreach item="creatorid" collection="creatorids">
+                or t1.creator = #{creatorid}
+            </foreach>)
+        </if>
+        <if test="creator != null">
+            <if test="!creator.isEmpty()">
+                AND t1.creator = #{creator}
+            </if>
+        </if>
+        <if test="userid != null">
+            <if test="!userid.isEmpty()">
+                AND t1.creator = #{userid}
+            </if>
+        </if>
+        <if test="searchkey != null">
+            <if test="!searchkey.isEmpty()">
+                AND  (t5.filename ilike '%'||#{filename}||'%' or t1.name ILIKE '%'||#{searchkey}||'%' or t1.description ILIKE '%'||#{searchkey}||'%'
+                <if test="searchcreatorids != null">
+                    <foreach item="creatorid" collection="searchcreatorids">
+                        or t1.creator = #{creatorid}
+                    </foreach>
+                </if>)
+            </if>
+        </if>
+        <if test="remarks != null">
+            and t1.remarks is not null and t1.remarks != ''
+        </if>
+        <if test="remarks == null">
+            and t1.importstatus != '0'
+        </if>
+        <if test="importstatus != null and !importstatus.isEmpty()">
+            and t1.importstatus=#{importstatus}
+        </if>
+        <if test="begin_time != null">
+            AND t1.createtime > #{begin_time}
+        </if>
+        <if test="end_time != null">
+            AND #{end_time} > t1.createtime
+        </if>
+    </sql>
+
+    <select id="queryForList" resultType="com.tianwen.springcloud.microservice.resource.entity.Resource">
+        SELECT t1.contentid, t1.contentno, t1.name, t1.schoolsection as schoolsectionid, t1.subjectid as subjectid,
+        t1.editiontypeid as editiontypeid, t1.grade as gradeid, t1.bookmodel as bookmodelid,
+        t1.chapter, t1.section, t1.knowledgepoint, t1.contenttype, t1.onelabel as onelabelid, t1.twolabel as twolabelid, t1.searchlabel, t1.oneschool,
+        t1.twoschool, t1.fitobject, t1.keyword, t1.description, t1.sourceid, t1.sharerange, t1.creator, t1.createtime, t1.lastmodifier,
+        t1.lastupdatetime, t1.endtime, t1.status, t1.score, t1.version, t1.viewtimes, t1.downtimes, t1.collectiontimes, t1.clicktimes, t1.hotvalue, t1.usetime,
+        t1.reslevelid, t1.encryptstatus, t1.contentkey, t1.epubtype, t1.isallowdownload, t1.threelabel as threelabelid, t1.ratesum, t1.isgoods, t1.isanswer, t1.remarks,
+        t1.filepath, t1.isanonymity, t1.importstatus, t3.activityid, t1.thumbnailpath
+        FROM t_e_content t1
+        left join t_con_content_activity t3 on t1.contentid = t3.resourceno
+        left join t_con_object2file t4 on t4.objectid = t1.contentid
+        <if test="remarks != null and remarks.isEmpty()">
+            left
+        </if>
+        join t_e_file t5 on t5.fileid = t4.fileid
+        <if test="catalogids != null">
+            left join t_con_content_book_chapter t2 on t1.contentid = t2.resourceno
+        </if>
+        <if test="catalogids == null">
+            <if test="bookid != null">
+                left join t_con_content_book_chapter t2 on t1.contentid = t2.resourceno
+            </if>
+        </if>
+        <include refid="queryConditions"/>
+        <if test="orderBycreatetime != null">
+            ORDER BY t1.createtime DESC
+        </if>
+        <if test="orderByRating != null">
+            ORDER BY t1.ratesum DESC, t1.contentid desc
+        </if>
+        <if test="orderByLastUpdate != null">
+            ORDER BY t1.lastupdatetime DESC
+        </if>
+        <if test="orderByVotes != null">
+            ORDER BY t1.clicktimes DESC, t1.contentid desc
+        </if>
+        <if test="orderBySchool != null">
+            ORDER BY t1.oneschool != null desc, t1.oneschool desc, t1.twoschool != null
+            desc, t1.twoschool desc, t1.contentid desc
+        </if>
+        <if test="orderByHot != null">
+            ORDER BY t1.hotvalue is null asc, t1.hotvalue desc, t1.contentid desc
+        </if>
+        <!--Author : GOD, 资源管理 Resource Service OrderBy : lastupdatetime-->
+        <!--Modify Reason : Xiao Said-->
+        <!--Data Start : 2019-1-28 11:30 AM-->
+
+
+        <if test="orderMethods == null">
+            ORDER BY t1.lastupdatetime DESC
+        </if>
+        <if test="orderbyanswer != null">
+            ORDER  BY t1.isanswer DESC
+            , t1.lastupdatetime DESC
+        </if>
+        <!--Author : GOD, 资源管理 OrderBy : lastupdatetime-->
+        <!--Modify Reason : Xiao Said-->
+        <!--Data End : 2019-1-28 6:15 PM-->
+        <if test="isgoods != null and !isgoods.isEmpty()">
+            , t6.createtime DESC
+        </if>
+        <if test="getAllData == null">
+            <include refid="sqlFragment_pagination"/>
+        </if>
+    </select>
+
+    <!--@author han-->
+    <!--retrieve resources by IDs-->
+    <select id="getByIds"
+            resultType="com.tianwen.springcloud.microservice.resource.entity.Resource">
+        SELECT t1.contentid, t1.contentno, t1.name, t1.schoolsection as schoolsectionid, t1.subjectid as subjectid,
+        t1.editiontypeid as editiontypeid, t1.grade as gradeid, t1.bookmodel as bookmodelid,
+        t1.chapter, t1.section, t1.knowledgepoint, t1.contenttype, t1.onelabel as onelabelid, t1.twolabel as twolabelid, t1.searchlabel, t1.oneschool,
+        t1.twoschool, t1.fitobject, t1.keyword, t1.description, t1.sourceid, t1.sharerange, t1.creator, t1.createtime, t1.lastmodifier,
+        t1.lastupdatetime, t1.endtime, t1.status, t1.score, t1.version, t1.viewtimes, t1.downtimes, t1.collectiontimes, t1.clicktimes, t1.hotvalue, t1.usetime,
+        t1.reslevelid, t1.encryptstatus, t1.contentkey, t1.epubtype, t1.isallowdownload, t1.threelabel as threelabelid, t1.ratesum, t1.isgoods, t1.isanswer, t1.remarks,
+        t1.filepath, t1.isanonymity, t1.importstatus, t3.activityid, t1.thumbnailpath
+        FROM t_e_content t1
+        left join t_con_content_activity t3 on t1.contentid = t3.resourceno
+        left join t_con_object2file t4 on t4.objectid = t1.contentid
+        left join t_e_file t5 on t5.fileid = t4.fileid
+        JOIN (VALUES
+        <foreach item="contentid" index="index" collection="contentids">
+            (#{contentid},#{index}),
+        </foreach>
+          ('', 1000)
+        ) AS datas (id, ordering) ON t1.contentid = datas.id
+        ORDER BY datas.ordering
+    </select>
+
+    <select id="getIdsByQueryTree" parameterType="java.util.Map"
+            resultType="String">
+        select distinct(t1.contentid) FROM t_e_content t1
+        left join t_con_content_activity t3 on t1.contentid = t3.resourceno
+        left join t_con_object2file t4 on t4.objectid = t1.contentid
+        <if test="remarks != null and remarks.isEmpty()">
+            left
+        </if>
+        join t_e_file t5 on t5.fileid = t4.fileid
+        <if test="catalogids != null">
+            left join t_con_content_book_chapter t2 on t1.contentid = t2.resourceno
+        </if>
+        <if test="catalogids == null">
+            <if test="bookid != null">
+                left join t_con_content_book_chapter t2 on t1.contentid = t2.resourceno
+            </if>
+        </if>
+        <include refid="queryConditions"/>
+        <if test="getalldata == null">
+            <include refid="sqlFragment_pagination"/>
+        </if>
+    </select>
+
+    <select id="getResourceCountByCatalog" parameterType="java.util.Map"
+        resultType="com.tianwen.springcloud.microservice.resource.entity.ResConTypeInfo">
+        select cat.chapterid, contenttype, count(contentid) as count from t_e_content
+        left join t_con_content_book_chapter cat on cat.resourceno = contentid
+        where isgoods = '1' and status != '8'
+        <if test="catalogid != null and !catalogid.isEmpty()">
+            and cat.chapterid = #{catalogid}
+        </if>
+        <if test="catalogids != null">
+            and (1 = 0
+            <foreach collection="catalogids" item="cid">
+                or cat.chapterid = #{cid}
+            </foreach>)
+        </if>
+        <if test="schoolsectionid != null and !schoolsectionid.isEmpty()">
+            and schoolsection = #{schoolsectionid}
+        </if>
+        <if test="subjectid != null and !subjectid.isEmpty()">
+            and subjectid = #{subjectid}
+        </if>
+        <if test="gradeid != null and !gradeid.isEmpty()">
+            and grade = #{gradeid}
+        </if>
+        <if test="editiontypeid != null and !editiontypeid.isEmpty()">
+            and editiontypeid = #{editiontypeid}
+        </if>
+        <if test="bookmodelid != null and !bookmodelid.isEmpty()">
+            and bookmodel = #{bookmodelid}
+        </if>
+        group by cat.chapterid, contenttype
+    </select>
+    <!--Author : GOD, 资源管理 Resource Service OrderBy : lastupdatetime-->
+    <!--Modify Reason : Xiao Said-->
+    <!--Data Start : 2019-1-28 11:30 AM-->
+
+    <!--Author : GOD, 资源管理 OrderBy : lastupdatetime-->
+    <!--Modify Reason : Xiao Said-->
+    <!--Data End : 2019-1-28 6:15 PM-->
+    <select id="activityResourceList" parameterType="java.util.Map" resultType="com.tianwen.springcloud.microservice.resource.entity.Resource">
+        SELECT
+            *
+        FROM
+            t_e_content t1
+        JOIN t_con_content_activity t3 ON t1.contentid = t3.resourceno
+        WHERE
+            1 = 1
+            <if test="searchkey != null">
+                <if test="!searchkey.isEmpty()">
+                    AND  t1.name ILIKE '%'||#{searchkey}||'%'
+                </if>
+            </if>
+            <if test="status != null">
+                <if test="!status.isEmpty()">
+                  AND status = #{status}
+                </if>
+            </if>
+            <if test="activitytype != null">
+                <if test="!activitytype.isEmpty()">
+                    and t3.resourcetype=#{activitytype}
+                </if>
+            </if>
+        <if test="activityid != null">
+            <if test="!activityid.isEmpty()">
+                and t3.activityid=#{activityid}
+            </if>
+        </if>
+        <if test="isgoods != null and !isgoods.isEmpty()">
+            and t1.isgoods=#{isgoods}
+        </if>
+    </select>
+
+    <select id="getCountByActivityId" parameterType="java.util.Map" resultType="Long">
+        SELECT
+          count(tbl.*)
+        FROM
+        t_con_content_activity t_con
+        JOIN t_e_content tbl ON tbl.contentid = t_con.resourceno
+        WHERE
+        1=1
+        and tbl.isgoods='1'
+        <if test="activityid != null">
+            <if test="!activityid.isEmpty()">
+                and t_con.activityid=#{activityid}
+            </if>
+        </if>
+        <if test="activitytype != null">
+            <if test="!activitytype.isEmpty()">
+                and t_con.resourcetype=#{activitytype}
+            </if>
+        </if>
+        <if test="begin_time != null">
+            and tbl.createtime > #{begin_time}
+        </if>
+        <if test="end_time != null">
+            and #{end_time} > tbl.createtime
+        </if>
+    </select>
+
+    <select id="getListByActivityid" parameterType="java.util.Map" resultType="com.tianwen.springcloud.microservice.resource.entity.Resource">
+        SELECT
+            tbl.*
+        FROM
+            t_con_content_activity t_con
+        JOIN t_e_content tbl ON tbl.contentid = t_con.resourceno
+        WHERE
+          1=1
+        and tbl.isgoods = '1'
+        <if test="activityid != null">
+            <if test="!activityid.isEmpty()">
+                and t_con.activityid=#{activityid}
+            </if>
+        </if>
+        <if test="activitytype != null">
+            <if test="!activitytype.isEmpty()">
+                and t_con.resourcetype=#{activitytype}
+            </if>
+        </if>
+        <if test="begin_time != null">
+            and tbl.createtime > #{begin_time}
+        </if>
+        <if test="end_time != null">
+            and #{end_time} > tbl.createtime
+        </if>
+        <include refid="sqlFragment_pagination"/>
+    </select>
+
+    <select id="getResourceCountOfActivity" parameterType="String" resultType="Integer">
+        SELECT
+          count(tbl.*)
+        FROM
+        t_con_content_activity t_con
+        JOIN t_e_content tbl ON tbl.contentid = t_con.resourceno
+        WHERE t_con.activityid=#{activityid}
+        and tbl.isgoods='1'
+        and tbl.status='3'
+    </select>
+
+    <select id="getCountResourceByUserid" parameterType="String" resultType="Integer">
+        SELECT count(*)from t_e_content t0
+        WHERE t0.creator = #{userid}
+    </select>
+
+    <select id="countResource" resultType="java.lang.Long">
+        SELECT count(*)
+        FROM t_e_content t1
+        left join t_con_content_activity t3 on t1.contentid = t3.resourceno
+        left join t_con_object2file t4 on t4.objectid = t1.contentid
+        <if test="remarks != null and remarks.isEmpty()">
+            left
+        </if>
+        join t_e_file t5 on t5.fileid = t4.fileid
+        <if test="catalogids != null">
+            left join t_con_content_book_chapter t2 on t1.contentid = t2.resourceno
+        </if>
+        <if test="catalogids == null">
+            <if test="bookid != null">
+                left join t_con_content_book_chapter t2 on t1.contentid = t2.resourceno
+            </if>
+        </if>
+        <include refid="queryConditions"/>
+    </select>
+
+    <update id="allow" parameterType="java.util.Map">
+        update t_e_content set status = '3', contentno = #{contentno} where contentid = #{contentid}
+    </update>
+
+    <update id="deny" parameterType="java.util.Map">
+        update t_e_content set status = '4', contentno = #{contentno} where contentid = #{contentid}
+    </update>
+
+    <update id="updateVoteTimes" parameterType="com.tianwen.springcloud.microservice.resource.entity.Resource">
+        update t_e_content set clicktimes = #{clicktimes} where contentid = #{contentid}
+    </update>
+
+    <update id="updateCollectionTimes" parameterType="com.tianwen.springcloud.microservice.resource.entity.Resource">
+        update t_e_content set collectiontimes = #{collectiontimes} where contentid = #{contentid}
+    </update>
+
+    <update id="updateHotValue" parameterType="com.tianwen.springcloud.microservice.resource.entity.Resource">
+        update t_e_content set hotvalue = #{hotvalue} where contentid = #{contentid}
+    </update>
+
+    <update id="updateRateSum" parameterType="com.tianwen.springcloud.microservice.resource.entity.Resource">
+        update t_e_content set ratesum = #{ratesum} where contentid = #{contentid}
+    </update>
+
+    <update id="updateViewTimes" parameterType="com.tianwen.springcloud.microservice.resource.entity.Resource">
+        update t_e_content set viewtimes = #{viewtimes} where contentid = #{contentid}
+    </update>
+
+    <update id="updateDownloadTimes" parameterType="com.tianwen.springcloud.microservice.resource.entity.Resource">
+        update t_e_content set downtimes = #{downtimes} where contentid = #{contentid}
+    </update>
+
+    <update id="setSchool" parameterType="java.util.Map">
+        update t_e_content set oneschool = #{oneschool}, twoschool = #{twoschool} where contentid = #{contentid}
+    </update>
+
+
+    <select id="getChapterCount" parameterType="java.util.Map" resultType="Integer">
+        select count(*) from t_con_content_book_chapter
+        where 1=1
+        <if test="bookid != null and !bookid.isEmpty()">
+            and bookid=#{bookid}
+        </if>
+        <if test="chapterid != null and !chapterid.isEmpty()">
+            and chapterid=#{chapterid}
+        </if>
+        <if test="contentid != null and !contentid.isEmpty()">
+            and resourceno=#{contentid}
+        </if>
+    </select>
+
+    <insert id="connectBookChapter" parameterType="java.util.Map">
+        INSERT  INTO t_con_content_book_chapter VALUES (#{bookid}, #{chapterid}, #{contentid}, #{resourcetype})
+    </insert>
+
+    <delete id="disconnectBookChapter" parameterType="java.lang.String">
+        delete from t_con_content_book_chapter t1 WHERE t1.resourceno=#{contentid}
+    </delete>
+
+    <select id="getCountByCreator" parameterType="String" resultType="Integer">
+        select count(*) from t_e_content where status != '8' and creator = #{userid}
+    </select>
+
+    <insert id="connectFile" parameterType="java.util.Map">
+        INSERT INTO t_con_object2file VALUES (
+        #{contentid}, #{fileid}, #{contenttype}
+        )
+    </insert>
+
+    <delete id="disconnectFile" parameterType="java.lang.String">
+        DELETE FROM t_con_object2file where objectid=#{contentid}
+    </delete>
+
+    <insert id="connectActivity" parameterType="java.util.Map">
+        INSERT INTO t_con_content_activity VALUES (
+        #{activityid}, #{contentid}, #{contenttype}
+        )
+    </insert>
+
+    <delete id="disconnectActivity" parameterType="java.lang.String">
+        DELETE FROM t_con_content_activity where resourceno=#{contentid}
+    </delete>
+
+    <select id="getByCatalogId" parameterType="String" resultType="String">
+        select resourceno from t_con_content_book_chapter where chapterid=#{chapterid}
+    </select>
+
+    <select id="getCatalogids" parameterType="String" resultType="String">
+        select chapterid from t_con_content_book_chapter where resourceno=#{contentid}
+    </select>
+
+    <select id="getFileid" parameterType="String" resultType="String">
+        select fileid from t_con_object2file where objectid=#{contentid} limit 1
+    </select>
+
+    <select id="getActivityId" parameterType="String" resultType="String">
+        select activityid from t_con_content_activity where resourceno=#{contentid}
+    </select>
+
+    <select id="getCollectedCountInfo" parameterType="java.util.Map" resultType="String">
+        WITH base_table AS (
+            SELECT
+                COUNT (*) type_count,
+                contenttype
+            FROM
+                t_e_content
+            WHERE
+                isgoods = '1'
+            AND sourceid = #{sourceid}
+            GROUP BY
+                contenttype
+            ORDER BY type_count DESC
+            LIMIT 2
+        )
+        select contenttype from base_table
+    </select>
+
+    <select id="getExportManListInfo" parameterType="java.util.Map" resultType="com.tianwen.springcloud.microservice.resource.entity.ExportMan">
+        SELECT * from (
+        SELECT
+            count(creator) as count, creator as userid
+        FROM
+            (
+                SELECT
+                    creator
+                FROM
+                    t_e_content
+                WHERE
+                    creator IN (
+                        SELECT DISTINCT
+                            creator
+                        FROM
+                            t_e_content
+                    )
+                    and isgoods = '1'
+                     <if test="sourceid != null">
+                         <if test="!sourceid.isEmpty()">
+                             and sourceid=#{sourceid}
+                         </if>
+                     </if>
+                    <if test="sourceids != null">
+                        and (1 = 0
+                        <foreach item="sourceid" collection="sourceids">
+                            or t1.sourceid = #{sourceid}
+                        </foreach>)
+                    </if>
+            ) q
+        GROUP BY
+            creator
+        ORDER BY
+            count DESC
+        )  tbl
+    </select>
+
+    <delete id="removeBook" parameterType="String">
+        delete from t_con_object2file where bookid=#{bookid}
+    </delete>
+
+    <select id="getActivityByResource" parameterType="String" resultType="String">
+        select distinct(activityid) from t_con_content_activity
+        where resourceno = #{contentid}
+    </select>
+
+    <select id="getActivitIds" resultType="String" parameterType="java.util.Map">
+        SELECT
+            distinct t0.activityid
+        FROM
+            t_con_content_activity t0
+        WHERE
+            resourceno IN (
+                SELECT
+                    contentid
+                FROM
+                    t_e_content
+                WHERE 1=1
+                    <if test="userid != null">
+                        <if test="!userid.isEmpty()">
+                          and creator = #{userid}
+                        </if>
+                    </if>
+            )
+            AND t0.resourcetype=#{activitytype}
+    </select>
+
+    <select id="getActivityViewtimes" parameterType="String" resultType="Long">
+        SELECT
+            sum(viewtimes) from t_e_content
+        WHERE
+            contentid IN (
+                SELECT
+                    resourceno
+                FROM
+                    t_con_content_activity
+                WHERE
+                    activityid = #{activityid}
+            )
+    </select>
+
+    <select id="getActivityDowntimes" parameterType="String" resultType="Long">
+        SELECT
+            sum(downtimes) from t_e_content
+        WHERE
+            contentid IN (
+                SELECT
+                    resourceno
+                FROM
+                    t_con_content_activity
+                WHERE
+                    activityid = #{activityid}
+            )
+    </select>
+
+    <select id="getJoinerCountOfActivity" parameterType="String" resultType="Long">
+        select count(distinct(t1.creator)) from t_con_content_activity t0
+        join t_e_content t1 on t0.resourceno = t1.contentid
+        WHERE t0.activityid=#{activityid}
+        and t1.isgoods='1'
+    </select>
+
+    <select id="getGoodAnswerCount" parameterType="java.util.Map" resultType="Long">
+        SELECT
+        count(t1)
+        FROM
+        t_con_content_activity t0
+        JOIN t_e_content t1 ON t0.resourceno = t1.contentid
+        WHERE
+        t0.resourcetype = '2'
+        AND t1.creator = #{userid}
+        AND  t1.isgoods = '1'
+        AND  t1.isanswer = '1'
+    </select>
+
+    <select id="getJoinerIds" parameterType="java.util.Map" resultType="String">
+        SELECT
+            DISTINCT(tbl.creator)
+        FROM
+            t_con_content_activity t_con
+        JOIN t_e_content tbl ON tbl.contentid = t_con.resourceno
+        where 1=1
+        <if test="activityid != null">
+            <if test="!activityid.isEmpty()">
+                and t_con.activityid = #{activityid}
+            </if>
+        </if>
+    </select>
+
+    <select id="getCreators" parameterType="java.util.Map" resultType="String">
+        SELECT DISTINCT(creator) FROM t_e_content
+        join t_con_content_activity t1 on contentid=t1.resourceno
+        where 1=1
+        <if test="isgoods != null and !isgoods.isEmpty()">
+            and isgoods=#{isgoods}
+        </if>
+        <if test="activitytype != null and !activitytype.isEmpty()">
+          and t1.resourcetype=#{activitytype}
+        </if>
+        <if test="activityid != null and !activityid.isEmpty()">
+            and t1.activityid=#{activityid}
+        </if>
+    </select>
+
+    <select id="getJoinInfoForUser" parameterType="Map" resultType="Long">
+        select count(distinct t2.activityid) as joincount from t_e_content t1
+        join t_con_content_activity t2 on t1.contentid=t2.resourceno
+        join t_con_object2file t3 on t3.objectid = t1.contentid
+        join t_e_file t4 on t4.fileid = t3.fileid
+        where t2.resourcetype=#{activitytype}
+        and t1.creator=#{userid}
+        and t1.status='3'
+    </select>
+
+    <select id="getGoodAnswerCreator" parameterType="String" resultType="String">
+        SELECT
+          t1.creator
+        FROM
+          t_con_content_activity t0
+        JOIN t_e_content t1 ON t0.resourceno = t1.contentid
+        WHERE TRUE
+        and t0.activityid = #{activityid}
+        AND  t1.isgoods = '1'
+        AND  t1.isanswer = '1'
+    </select>
+
+    <select id="getCountInfoByUserId" parameterType="String" resultType="com.tianwen.springcloud.microservice.resource.entity.UserCountInfo">
+        SELECT
+            SUM (t1.viewtimes) AS viewtimes,
+            SUM (t1.collectiontimes) AS collectiontimes,
+            SUM (t1.clicktimes) AS votetimes,
+            SUM (t1.downtimes) AS downtimes
+        FROM
+            t_con_content_activity t0
+        JOIN t_e_content t1 ON t0.resourceno = t1.contentid
+        WHERE
+            t0.resourcetype = '3'
+        AND t1.creator = #{userid}
+    </select>
+
+    <select id="getResourceCountInfo" parameterType="java.util.Map"
+            resultType="com.tianwen.springcloud.microservice.resource.entity.UserCountInfo">
+        SELECT
+            SUM (restbl.viewtimes) AS viewtimes,
+            SUM (restbl.collectiontimes) AS collectiontimes,
+            SUM (restbl.clicktimes) AS votetimes,
+            SUM (restbl.downtimes) AS downtimes
+        FROM t_e_content restbl
+        WHERE 1 = 1
+        <if test="creator != null and !creator.isEmpty()">
+            and restbl.creator = #{creator}
+        </if>
+        <if test="isgoods != null and !isgoods.isEmpty()">
+            and restbl.isgoods = #{isgoods}
+        </if>
+        <if test="creatorids != null">
+            and (1 = 0
+            <foreach item="creatorid" collection="creatorids">
+                or restbl.creator = #{creatorid}
+            </foreach>)
+        </if>
+
+    </select>
+
+    <select id="getRewardActivityStatus" parameterType="java.util.Map" resultType="String">
+        SELECT
+        CASE
+        WHEN COUNT (t1.isanswer) > 0 THEN
+        '2'
+        ELSE
+        '1'
+        END AS isanswer
+        FROM
+        t_e_content t1
+        LEFT JOIN t_con_content_activity t4 ON t1.contentid = t4.resourceno
+        WHERE
+        1 = 1
+        AND t4.resourcetype = '2'
+        AND t1.isanswer='1'
+        AND t4.activityid = (
+        SELECT
+        t4.activityid
+        FROM
+        t_e_content t1
+        LEFT JOIN t_con_content_activity t4 ON t1.contentid = t4.resourceno
+        WHERE
+        1 = 1
+        AND t1.contentid = #{contentid}
+        limit 1
+        )
+    </select>
+
+    <select id="getActivityCountByCreator" parameterType="java.util.Map" resultType="Long">
+        SELECT
+            COUNT (DISTINCT(t1.activityid))
+        FROM
+            t_e_content t0
+        JOIN t_con_content_activity t1 ON contentid = t1.resourceno
+        WHERE
+            t1.resourcetype = '2'
+        AND t0.isgoods='1'
+        AND creator = #{creator}
+    </select>
+
+    <select id="getMaximumContentNo" parameterType="java.util.Map" resultType="String">
+        select max(contentno) from t_e_content
+        where status != '8'
+        <if test="contenttype != null">
+            <if test="!contenttype.isEmpty()">
+                and contenttype = #{contenttype}
+            </if>
+        </if>
+    </select>
+
+    <select id="getPrefix" resultType="String">
+        select prefix_val from t_e_prefix limit 1
+    </select>
+    <!--Author : GOD-->
+    <!--Date Start: 2019-2-4 2:00 PM-->
+    <!--Reason : Bug ID 559-->
+    <select id="getAuditStatistics" parameterType="java.util.Map"
+            resultType="com.tianwen.springcloud.microservice.resource.entity.ResAuditInfo">
+        select resource.status, resource.subjectid, count(audit.objectid), resource.schoolsection from t_e_audit_foreign audit
+        left join t_e_content resource on (audit.objecttype = '1' and resource.contentid = audit.objectid)
+        where 1 = 1
+        and (resource.status = '3' or resource.status = '4')
+        <if test="businesstype != null">
+            and (1 = 0
+            <foreach collection="businesstype" item="sourceid">
+                or resource.sourceid = #{sourceid}
+            </foreach>)
+        </if>
+        <if test="status != null and !status.isEmpty()">
+            and resource.status = #{status}
+        </if>
+        <if test="audituser != null and !audituser.isEmpty()">
+            and audit.audituser = #{audituser}
+        </if>
+        <if test="sharerange != null and !sharerange.isEmpty()">
+            and resource.sharerange = #{sharerange}
+        </if>
+        <if test="creatorids != null">
+            and (1 = 0
+            <foreach collection="creatorids" item="userid">
+              or resource.creator = #{userid}
+            </foreach>)
+        </if>
+        <if test="begin_time != null">
+            and audit.audittime >= #{begin_time}
+        </if>
+        <if test="end_time != null">
+            and #{end_time} >= audit.audittime
+        </if>
+        group by resource.status, resource.subjectid, resource.schoolsection
+    </select>
+    <!--Author : GOD-->
+    <!--Date End: 2019-2-4 4:00 PM-->
+    <!--Reason : Bug ID 559-->
+
+    <!--Author : GOD-->
+    <!--Date Start: 2019-2-18 6:00 PM-->
+    <!--Reason : Bug ID 781-->
+    <select id="getAuditStatisticsCountBySharerange" parameterType="java.util.Map"
+            resultType="Long">
+        select count(audit.objectid) from t_e_audit_foreign audit
+        left join t_e_content resource on (audit.objecttype = '1' and resource.contentid = audit.objectid)
+        where 1 = 1
+        and (resource.status = '3' or resource.status = '4')
+        <if test="businesstype != null">
+            and (1 = 0
+            <foreach collection="businesstype" item="sourceid">
+                or resource.sourceid = #{sourceid}
+            </foreach>)
+        </if>
+        <if test="status != null and !status.isEmpty()">
+            and resource.status = #{status}
+        </if>
+        <if test="audituser != null and !audituser.isEmpty()">
+            and audit.audituser = #{audituser}
+        </if>
+        <if test="sharerange != null and !sharerange.isEmpty()">
+            and resource.sharerange = #{sharerange}
+        </if>
+        <if test="creatorids != null">
+            and (1 = 0
+            <foreach collection="creatorids" item="userid">
+                or resource.creator = #{userid}
+            </foreach>)
+        </if>
+        <if test="begin_time != null">
+            and audit.audittime >= #{begin_time}
+        </if>
+        <if test="end_time != null">
+            and #{end_time} >= audit.audittime
+        </if>
+        group by resource.status, resource.subjectid
+    </select>
+    <!--Author : GOD-->
+    <!--Date End: 2019-2-19 2:00 AM-->
+    <!--Reason : Bug ID 781-->
+
+    <sql id="auditConditions">
+        and (resource.status = '3' or resource.status = '4')
+        <if test="onelabelid != null">
+            and (1 = 0
+            <foreach collection="onelabelid" item="one">
+                or resource.onelabel = #{one}
+            </foreach>)
+        </if>
+        <if test="twolabelid != null">
+            and (1 = 0
+            <foreach collection="twolabelid" item="two">
+                or resource.twolabel = #{two}
+            </foreach>)
+        </if>
+        <if test="threelabelid != null">
+            and (1 = 0
+            <foreach collection="threelabelid" item="three">
+                or resource.threelabel = #{three}
+            </foreach>)
+        </if>
+        <if test="schoolsectionid != null and !schoolsectionid.isEmpty()">
+            and resource.schoolsection = #{schoolsectionid}
+        </if>
+        <if test="subjectid != null and !subjectid.isEmpty()">
+            and resource.subjectid = #{subjectid}
+        </if>
+        <if test="gradeid != null and !gradeid.isEmpty()">
+            and resource.grade = #{gradeid}
+        </if>
+        <if test="editiontypeid != null and !editiontypeid.isEmpty()">
+            and resource.editiontypeid = #{editiontypeid}
+        </if>
+        <if test="bookmodelid != null and !bookmodelid.isEmpty()">
+            and resource.bookmodel = #{bookmodelid}
+        </if>
+        <if test="onelabel != null and !onelabel.isEmpty()">
+            and resource.onelabel = #{onelabel}
+        </if>
+        <if test="twolabel != null and !twolabel.isEmpty()">
+            and resource.twolabel = #{twolabel}
+        </if>
+        <if test="threelabel != null and !threelabel.isEmpty()">
+            and resource.threelabel = #{threelabel}
+        </if>
+        <if test="sharerange != null and !sharerange.isEmpty()">
+            and resource.sharerange = #{sharerange}
+        </if>
+        <if test="objectids != null">
+            and (1 = 0
+            <foreach item="objectid" collection="objectids">
+                or resource.contentid = #{objectid}
+            </foreach>)
+        </if>
+        <if test="searchkey != null and !searchkey.isEmpty()">
+            and (
+              resource.name ilike '%'||#{searchkey}||'%'
+              or resource.description ilike '%'||#{searchkey}||'%'
+            )
+        </if>
+        <if test="audituser != null">
+            and (1 = 0
+            <foreach collection="audituser" item="user">
+                or audit.audituser = #{user}
+            </foreach>)
+        </if>
+        <if test="userid != null">
+            <if test="!userid.isEmpty()">
+                and audit.audituser = #{userid}
+            </if>
+        </if>
+        <if test="result != null">
+            <if test="!result.isEmpty()">
+                and audit.result = #{result}
+            </if>
+        </if>
+        <if test="audittype != null">
+            <if test="!audittype.isEmpty()">
+                and t0.audittype = #{audittype}
+            </if>
+        </if>
+        <if test="begin_time != null">
+            AND audit.audittime >= #{begin_time}
+        </if>
+        <if test="end_time != null">
+            AND #{end_time} >= audit.audittime
+        </if>
+    </sql>
+
+    <select id="countAuditInfoList" parameterType="java.util.Map"
+        resultType="Long">
+        SELECT count(audit.*) from t_e_audit_foreign audit
+        left join t_e_content resource on (audit.objecttype = '1' and resource.contentid = audit.objectid)
+        where 1 = 1
+        <include refid="auditConditions"/>
+    </select>
+    <select id="queryAuditInfoList" parameterType="java.util.Map"
+            resultType="com.tianwen.springcloud.microservice.resource.entity.Audit">
+        SELECT audit.auditid,audit.objectid,audit.objecttype,audit.result,audit.audituser,audit.remark,audit.audittime,audit.audittype from t_e_audit_foreign audit
+        left join t_e_content resource on (audit.objecttype = '1' and resource.contentid = audit.objectid)
+        where 1 = 1
+        <include refid="auditConditions"/>
+        <if test="audittimeASC != null">
+            ORDER BY audit.audittime ASC
+        </if>
+        <if test="audittimeDESC != null">
+            ORDER BY audit.audittime DESC
+        </if>
+        <if test="resultASC != null">
+            ORDER BY audit.result ASC
+        </if>
+        <if test="resultDESC != null">
+            ORDER BY audit.result DESC
+        </if>
+        <if test="getalldata == null">
+            <include refid="sqlFragment_pagination"/>
+        </if>
+    </select>
+
+    <select id="getActivityCountInfo" parameterType="String" resultType="com.tianwen.springcloud.microservice.resource.entity.ActivityCountInfo">
+        SELECT
+            SUM(CASE WHEN status = '3' THEN 1 ELSE 0 END) answercount,
+            count(DISTINCT creator) joinercount,
+            SUM(viewtimes) viewtimes,
+            SUM(downtimes) downtimes
+        FROM
+            t_con_content_activity t0
+        LEFT JOIN t_e_content t1 ON t0.resourceno = t1.contentid
+        WHERE
+            activityid = #{activityid}
+    </select>
+
+    <sql id="importConditions">
+        <if test="importstatus != null and !importstatus.isEmpty()">
+            and restbl.importstatus = #{importstatus}
+        </if>
+        <if test="filename != null and !filename.isEmpty()">
+            and filetbl.filename ilike '%'||#{filename}||'%'
+        </if>
+        <if test="remarks != null and !remarks.isEmpty()">
+            and restbl.remarks ilike '%\"creator\":\"%'||#{remarks}||'%\"%'
+        </if>
+        <if test="creatorids != null">
+            and (1 = 0
+            <foreach item="creatorid" collection="creatorids">
+                or restbl.creator = #{creatorid}
+            </foreach>)
+        </if>
+        <if test="begin_time != null">
+            AND restbl.createtime > #{begin_time}
+        </if>
+        <if test="end_time != null">
+            AND #{end_time} > restbl.createtime
+        </if>
+    </sql>
+
+    <select id="countImportedList" parameterType="java.util.Map"
+            resultType="Long">
+        select count(distinct(restbl.contentid)) from t_e_content restbl
+        left join t_con_object2file contbl on contbl.objectid = restbl.contentid
+        left join t_e_file filetbl on filetbl.fileid = contbl.fileid
+        where restbl.remarks is not null and restbl.remarks != '' and restbl.status != '8'
+        <include refid="importConditions"/>
+    </select>
+
+    <select id="getImportedList" parameterType="java.util.Map"
+            resultType="com.tianwen.springcloud.microservice.resource.entity.Resource">
+        select total.*,
+        total.schoolsection as schoolsectionid, total.grade as gradeid, total.bookmodel as bookmodelid,
+        total.onelabel as onelabelid, total.twolabel as twolabelid, total.threelabel as threelabelid
+        from (select restbl.contentid,restbl.contentno,restbl.subjectid,restbl.editiontypeid,restbl.grade,restbl.bookmodel,restbl.chapter,restbl.section,restbl.knowledgepoint,restbl.contenttype,
+        restbl.onelabel,restbl.twolabel,restbl.searchlabel,restbl.oneschool,restbl.twoschool,restbl.fitobject,restbl.sourceid,restbl.sharerange,restbl.creator,restbl.createtime,restbl.lastmodifier,
+        restbl.lastupdatetime,restbl.endtime,restbl.status,restbl.score,restbl.version,restbl.viewtimes,restbl.downtimes,restbl.collectiontimes,restbl.clicktimes,restbl.usetime,restbl.reslevelid,
+        restbl.contentkey,restbl.epubtype,restbl.isallowdownload,restbl.threelabel,restbl.ratesum,restbl.isgoods,restbl.isanswer,restbl.remarks,restbl.importstatus,restbl.filepath,
+        restbl.hotvalue,restbl.isanonymity,restbl.thumbnailpath,restbl.sharerangekey,restbl.schoolsection,restbl.name,restbl.keyword,restbl.description,restbl.encryptstatus from t_e_content restbl
+        left join t_con_object2file contbl on contbl.objectid = restbl.contentid
+        left join t_e_file filetbl on filetbl.fileid = contbl.fileid
+        where restbl.remarks is not null and restbl.remarks != '' and restbl.status != '8'
+        <include refid="importConditions"/>
+         order by restbl.createtime DESC
+        <include refid="sqlFragment_pagination"/>
+        ) total
+    </select>
+
+    <select id="getThemeResCnt" parameterType="java.util.Map"
+            resultType="Long">
+        select count(restbl.*) from(select * from t_e_content
+        where 1 = 1
+        <if test="isgoods != null and !isgoods.isEmpty()">
+            and isgoods = #{isgoods}
+        </if>
+        ) restbl
+        join (select distinct(resourceno) from t_con_resource_theme) contbl on restbl.contentid = contbl.resourceno
+    </select>
+
+    <select id="getThemeResList" parameterType="java.util.Map"
+            resultType="com.tianwen.springcloud.microservice.resource.entity.Resource">
+        select restbl.contentid,restbl.contentno,restbl.subjectid,restbl.editiontypeid,restbl.grade,restbl.bookmodel,restbl.chapter,restbl.section,restbl.knowledgepoint,restbl.contenttype,
+        restbl.onelabel,restbl.twolabel,restbl.searchlabel,restbl.oneschool,restbl.twoschool,restbl.fitobject,restbl.sourceid,restbl.sharerange,restbl.creator,restbl.createtime,restbl.lastmodifier,
+        restbl.lastupdatetime,restbl.endtime,restbl.status,restbl.score,restbl.version,restbl.viewtimes,restbl.downtimes,restbl.collectiontimes,restbl.clicktimes,restbl.usetime,restbl.reslevelid,
+        restbl.contentkey,restbl.epubtype,restbl.isallowdownload,restbl.threelabel,restbl.ratesum,restbl.isgoods,restbl.isanswer,restbl.remarks,restbl.importstatus,restbl.filepath,
+        restbl.hotvalue,restbl.isanonymity,restbl.thumbnailpath,restbl.sharerangekey,restbl.schoolsection,restbl.name,restbl.keyword,restbl.description,restbl.encryptstatus from (select * from t_e_content
+        where 1 = 1
+        <if test="isgoods != null and !isgoods.isEmpty()">
+            and isgoods = #{isgoods}
+        </if>
+        ) restbl
+        join (select distinct(resourceno) from t_con_resource_theme) contbl on restbl.contentid = contbl.resourceno
+        <include refid="sqlFragment_pagination"/>
+    </select>
+</mapper>

@@ -1,0 +1,385 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+
+       Copyright 2015-2016 the original author or authors.
+
+       Licensed under the Apache License, Version 2.0 (the "License");
+       you may not use this file except in compliance with the License.
+       You may obtain a copy of the License at
+
+          http://www.apache.org/licenses/LICENSE-2.0
+
+       Unless required by applicable law or agreed to in writing, software
+       distributed under the License is distributed on an "AS IS" BASIS,
+       WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+       See the License for the specific language governing permissions and
+       limitations under the License.
+
+-->
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tianwen.springcloud.microservice.bussinessassist.dao.GoodMapper">
+
+    <!-- 分页 -->
+    <sql id="sqlFragment_pagination">
+        <if test="numPerPage != null">
+            limit #{numPerPage}
+        </if>
+        <if test="start != null">
+            offset #{start}
+        </if>
+    </sql>
+
+    <!-- 查询条件 -->
+    <sql id="sqlFragment_searchCriteria">
+        <if test="oredCriteria != null and oredCriteria.size != 0">
+            <trim prefix="and(" suffix=")">
+                <foreach collection="oredCriteria" item="criteria" separator="or">
+                    <if test="criteria.valid">
+                        <trim prefix="(" prefixOverrides="and" suffix=")">
+                            <foreach collection="criteria.criteria" item="criterion">
+                                <choose>
+                                    <when test="criterion.noValue">
+                                        and ${criterion.condition}
+                                    </when>
+                                    <when test="criterion.singleValue">
+                                        and ${criterion.condition} #{criterion.value}
+                                    </when>
+                                    <when test="criterion.betweenValue">
+                                        and ${criterion.condition} #{criterion.value} and #{criterion.secondValue}
+                                    </when>
+                                    <when test="criterion.listValue">
+                                        and ${criterion.condition}
+                                        <foreach close=")" collection="criterion.value" item="listItem" open="("
+                                                 separator=",">
+                                            #{listItem}
+                                        </foreach>
+                                    </when>
+                                </choose>
+                            </foreach>
+                        </trim>
+                    </if>
+                </foreach>
+            </trim>
+        </if>
+    </sql>
+
+    <select id="queryProductIdForList" parameterType="java.util.Map"
+            resultType="String">
+        SELECT
+        t0.productid
+        FROM
+        t_e_good t0
+        where 1 = 1
+        <if test="goodid != null">
+            <if test="!goodid.isEmpty()">
+                and t0.goodid=#{goodid}
+            </if>
+        </if>
+        <if test="status != null">
+            <if test="!status.isEmpty()">
+                and t0.status = #{status}
+            </if>
+        </if>
+        <if test="begin_time != null">
+            and createtime >= #{begin_time}
+        </if>
+        <if test="end_time != null">
+            and #{end_time} >= createtime
+        </if>
+    </select>
+
+    <sql id="shareRangeKeyCondition">
+        <if test="isUser != null">
+            AND CASE
+            WHEN (
+            t1.sharerange != '1'
+            AND t1.sharerange IS NOT NULL
+            ) THEN
+            CASE
+            WHEN t1.sharerange = '2' THEN
+            <if test="castleid != null and !castleid.isEmpty()">
+                t1.sharerangekey ilike '%'||#{castleid}||'%'
+            </if>
+            <if test="castleid == null || castleid.isEmpty()">
+                FALSE
+            </if>
+            ELSE
+            CASE
+            WHEN t1.sharerange = '3' THEN
+            <if test="cityid != null and !cityid.isEmpty()">
+                t1.sharerangekey ilike '%,'||#{cityid}||'%'
+            </if>
+            <if test="cityid == null || cityid.isEmpty()">
+                FALSE
+            </if>
+            ELSE
+            CASE
+            WHEN t1.sharerange = '4' THEN
+            <if test="partid != null and !partid.isEmpty()">
+                t1.sharerangekey ilike '%,'||#{partid}||'%'
+            </if>
+            <if test="partid == null || partid.isEmpty()">
+                FALSE
+            </if>
+            ELSE
+            <if test="orgsharerangeid != null and !orgsharerangeid.isEmpty()">
+                t1.sharerangekey ilike '%,'||#{orgsharerangeid}||'%'
+            </if>
+            <if test="orgsharerangeid == null || orgsharerangeid.isEmpty()">
+                FALSE
+            </if>
+            END
+            END
+            END
+            ELSE
+            TRUE
+            END
+        </if>
+    </sql>
+
+    <sql id="queryCondition">
+        WHERE 1 = 1
+        <if test="ismanager != null and !ismanager.isEmpty()">
+            AND CURRENT_TIMESTAMP > goodtbl.onshelftime
+            AND goodtbl.downshelftime > CURRENT_TIMESTAMP
+        </if>
+        and t1.status!='8'
+        <include refid="shareRangeKeyCondition"/>
+        <if test="isanswer != null and !isanswer.isEmpty()">
+            and isanswer = #{isanswer}
+        </if>
+        <if test="contentids != null">
+            and (1 = 0
+            <foreach item="contentid" collection="contentids">
+                or t1.contentid = #{contentid}
+            </foreach>)
+        </if>
+        <if test="contentid != null">
+            <if test="!contentid.isEmpty()">
+                AND t1.contentid = #{contentid}
+            </if>
+        </if>
+        <if test="name != null">
+            <if test = "!name.isEmpty()">
+                and t1.name ilike '%'||#{name}||'%'
+            </if>
+        </if>
+        <if test="isgoods != null">
+            <if test="!isgoods.isEmpty()">
+                AND t1.isgoods = #{isgoods}
+            </if>
+        </if>
+        <if test="activityjoiner != null and !activityjoiner.isEmpty()">
+            and (t1.isgoods = '1' or t1.creator = #{activityjoiner})
+        </if>
+        <if test="contenttype != null">
+            <if test="!contenttype.isEmpty()">
+                and t1.contenttype = #{contenttype}
+            </if>
+        </if>
+        <if test="contenttypes != null">
+            and (1 = 0
+            <foreach item="contype" collection="contenttypes">
+                or t1.contenttype = #{contype}
+            </foreach>)
+        </if>
+        <if test="onelabelid != null">
+            and t1.onelabel in
+            <foreach collection="onelabelid" item="oneid" separator="," open="(" close=")">
+                #{oneid}
+            </foreach>
+        </if>
+        <if test="twolabelid != null">
+            and t1.twolabel in
+            <foreach collection="twolabelid" item="twoid" separator="," open="(" close=")">
+                #{twoid}
+            </foreach>
+        </if>
+        <if test="threelabelid != null">
+            and t1.threelabel in
+            <foreach collection="threelabelid" item="threeid" separator="," open="(" close=")">
+                #{threeid}
+            </foreach>
+        </if>
+        <if test="onelabel != null">
+            <if test="!onelabel.isEmpty()">
+                AND t1.onelabel = #{onelabel}
+            </if>
+        </if>
+        <if test="onelabelids != null">
+            and (1 = 0
+            <foreach item="onelabelid" collection="onelabelids">
+                or t1.onelabel = #{onelabelid}
+            </foreach>)
+        </if>
+        <if test="twolabel != null">
+            <if test="!twolabel.isEmpty()">
+                AND t1.twolabel = #{twolabel}
+            </if>
+        </if>
+        <if test="threelabel != null">
+            <if test="!threelabel.isEmpty()">
+                AND t1.threelabel = #{threelabel}
+            </if>
+        </if>
+        <if test="labelkey != null">
+            <if test="!labelkey.isEmpty()">
+                AND (t1.onelabel = #{labelkey} or t1.twolabel = #{labelkey} or t1.threelabel = #{labelkey})
+            </if>
+        </if>
+        <if test="sharerange != null">
+            <if test="!sharerange.isEmpty()">
+                AND t1.sharerange = #{sharerange}
+            </if>
+        </if>
+        <if test="oneschool != null">
+            <if test="!oneschool.isEmpty()">
+                AND t1.oneschool = #{oneschool}
+            </if>
+        </if>
+        <if test="twoschool != null">
+            <if test="!twoschool.isEmpty()">
+                AND t1.twoschool = #{twoschool}
+            </if>
+        </if>
+        <if test="goodstatus != null">
+            <if test="!goodstatus.isEmpty()">
+                AND goodtbl.status = #{goodstatus}
+            </if>
+        </if>
+        <if test="schoolsectionid != null">
+            <if test="!schoolsectionid.isEmpty()">
+                and (#{schoolsectionid} ilike '%, '||t1.schoolsection||'%'
+                or #{schoolsectionid} ilike '%['||t1.schoolsection||'%'
+                or #{schoolsectionid} = t1.schoolsection)
+            </if>
+        </if>
+        <if test="subjectid != null">
+            <if test="!subjectid.isEmpty()">
+                and (#{subjectid} ilike '%, '||t1.subjectid||'%'
+                or #{subjectid} ilike '%['||t1.subjectid||'%'
+                or #{subjectid} = t1.subjectid)
+            </if>
+        </if>
+        <if test="gradeid != null">
+            <if test="!gradeid.isEmpty()">
+                and (#{gradeid} ilike '%, '||t1.grade||'%'
+                or #{gradeid} ilike '%['||t1.grade||'%'
+                or #{gradeid} = t1.grade)
+            </if>
+        </if>
+        <if test="bookmodelid != null">
+            <if test="!bookmodelid.isEmpty()">
+                and (#{bookmodelid} ilike '%, '||t1.bookmodel||'%'
+                or #{bookmodelid} ilike '%['||t1.bookmodel||'%'
+                or #{bookmodelid} = t1.bookmodel)
+            </if>
+        </if>
+        <if test="editiontypeid != null">
+            <if test="!editiontypeid.isEmpty()">
+                and (#{editiontypeid} ilike '%, '||t1.editiontypeid||'%'
+                or #{editiontypeid} ilike '%['||t1.editiontypeid||'%'
+                or #{editiontypeid} = t1.editiontypeid)
+            </if>
+        </if>
+        <if test="sourceid != null">
+            <if test="!sourceid.isEmpty()">
+                and t1.sourceid = #{sourceid}
+            </if>
+        </if>
+        <if test="sourceids != null">
+            and (1 = 0
+            <foreach item="sourceid" collection="sourceids">
+                or t1.sourceid = #{sourceid}
+            </foreach>)
+        </if>
+        <if test="catalogids != null">
+            and (1 = 0
+            <foreach item="catid" collection="catalogids">
+                or #{catid} = t2.chapterid
+            </foreach>)
+        </if>
+        <if test="bookid != null">
+            <if test="!bookid.isEmpty()">
+                and t2.bookid = #{bookid}
+            </if>
+        </if>
+        <if test="creatorids != null">
+            and (1 = 0
+            <foreach item="creatorid" collection="creatorids">
+                or t1.creator = #{creatorid}
+            </foreach>)
+        </if>
+        <if test="creator != null">
+            <if test="!creator.isEmpty()">
+                AND t1.creator = #{creator}
+            </if>
+        </if>
+        <if test="userid != null">
+            <if test="!userid.isEmpty()">
+                AND t1.creator = #{userid}
+            </if>
+        </if>
+        <if test="searchkey != null">
+            <if test="!searchkey.isEmpty()">
+                and (t1.name ilike '%'||#{searchkey}||'%' or t1.description ilike '%'||#{searchkey}||'%')
+            </if>
+        </if>
+        <if test="remarks != null">
+            and t1.remarks is not null and t1.remarks != ''
+        </if>
+        <if test="importstatus != null and !importstatus.isEmpty()">
+            and t1.importstatus=#{importstatus}
+        </if>
+        <if test="begin_time != null">
+            AND goodtbl.createtime > #{begin_time}
+        </if>
+        <if test="end_time != null">
+            AND #{end_time} > goodtbl.createtime
+        </if>
+    </sql>
+
+    <select id="queryGoodForList" parameterType="java.util.Map"
+            resultType="com.tianwen.springcloud.microservice.bussinessassist.entity.Good">
+        select goodtbl.* FROM t_e_content_foreign t1
+        join t_e_good goodtbl on t1.contentid = goodtbl.productid
+        <include refid="queryCondition"/>
+        <if test="orderBycreatetime != null">
+            ORDER BY t1.createtime DESC
+        </if>
+        <if test="orderByRating != null">
+            ORDER BY t1.ratesum DESC, t1.contentid desc
+        </if>
+        <if test="orderByLastUpdate != null">
+            ORDER BY t1.lastupdatetime DESC
+        </if>
+        <if test="orderByVotes != null">
+            ORDER BY t1.clicktimes DESC, t1.contentid desc
+        </if>
+        <if test="orderBySchool != null">
+            ORDER BY t1.oneschool != null desc, t1.oneschool desc, t1.twoschool != null
+            desc, t1.twoschool desc, t1.contentid desc
+        </if>
+        <if test="orderByHot != null">
+            ORDER BY t1.hotvalue is null asc, t1.hotvalue desc, t1.contentid desc
+        </if>
+        <if test="orderMethods == null">
+            ORDER BY t1.createtime DESC
+        </if>
+        <include refid="sqlFragment_pagination"/>
+    </select>
+
+    <select id="countGoods" parameterType="java.util.Map"
+            resultType="Long">
+        select count(*) from t_e_content_foreign t1
+        right join t_e_good goodtbl on t1.contentid = goodtbl.productid
+        <include refid="queryCondition"/>
+    </select>
+
+    <select id="getByContentid" parameterType="String" resultType="com.tianwen.springcloud.microservice.bussinessassist.entity.Good">
+        SELECT * FROM t_e_good WHERE productid=#{contentid} offset 0 limit 1
+    </select>
+
+</mapper>
